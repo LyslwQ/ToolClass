@@ -1,0 +1,119 @@
+/*************************************************************************
+    > File Name: main.cpp
+    > Author: Ys
+    > Created Time: 2019年01月29日 星期二 13时41分39秒
+ ************************************************************************/
+
+#include <iostream>
+#include <stdio.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <string.h>
+#include <regex>
+#include <map>
+
+using std::cout;
+using std::endl;
+using std::map;
+using std::string;
+
+bool handleFiles(const string& srcDir, const string& desDir
+				 , map<string, string>& sortRule);
+
+bool sortFiles(const string& fileName, map<string, string>& sortRule);
+
+bool checkDir(const string& fileName);
+
+int errorHandle(const string& info, int ret);
+
+const string desDir("/home/ciker/project/Sentinel/des");
+const string srcDir("/home/ciker/project/Sentinel");
+
+int main()
+{
+	//key:pattern ->  value:the address for store files
+	map<string, string> sortRule;
+	sortRule["(.*)(\\.cpp)"] = desDir + "/cpp";
+	sortRule["(.*)(\\.c)"]   = desDir + "/c";
+	
+	if(!handleFiles(srcDir, desDir, sortRule))
+		errorHandle("handleFiles error!!", -1);
+	return 0;
+}
+
+
+bool handleFiles(const string& srcDir, const string& desDir
+				 , map<string, string>& sortRule)
+{
+	// check if dir is valid
+	if(!checkDir(srcDir))
+		return false;
+
+	// check if dir is valid
+	if(!checkDir(desDir)){
+		string command("mkdir ");
+		command += desDir;
+		system(command.c_str());
+		cout << "handleFiles():" << command << endl;
+	}
+
+	struct dirent *fileName;    // return value for readdir()
+ 	DIR *dirFd;                 // return value for opendir()
+	struct stat s;
+	memset(&s, 0, sizeof(s));
+	dirFd = opendir(srcDir.c_str());
+	if( nullptr == dirFd )
+		errorHandle("Can not open dir(" + srcDir + ")", false);
+
+	//read all the files in the dir 
+	while((fileName = readdir(dirFd)) != NULL ){
+		lstat( fileName->d_name , &s );
+		//if is a subDir
+		if(S_ISDIR( s.st_mode ) ){
+			//cout<< "handleFile(): " << filename->d_name << " is a dir!"<<endl;
+			continue;
+		}
+		sortFiles(srcDir + '/' + fileName->d_name, sortRule);
+	}
+	return true;
+}
+
+bool sortFiles(const string& fileName, map<string, string>& sortRule)
+{
+	map<string, string>::iterator it = sortRule.begin();
+	for(; it != sortRule.end(); ++it){
+		if(!std::regex_match(fileName, std::regex(it->first)))
+			continue;
+		// check if dir is valid
+		if(!checkDir(it->second)){
+			string command("mkdir ");
+			command += it->second;
+			system(command.c_str());
+			cout << "sortFiles():" << command << endl;
+		}
+		string command("cp  ");
+		command += fileName + "  " + it->second;
+		cout << command << endl;
+		system(command.c_str());
+	}
+	return true;
+}
+
+bool checkDir(const string& dir)
+{
+	struct stat s;
+	memset(&s, 0, sizeof(s));
+	lstat( dir.c_str() , &s );
+	if( ! S_ISDIR( s.st_mode ) ){
+		cout<<"dir_name is not a valid directory !"<<endl;
+		return false;
+	}
+	return true;
+}
+
+int errorHandle(const string& info, int ret)
+{
+
+}
